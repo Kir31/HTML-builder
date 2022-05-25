@@ -1,12 +1,31 @@
 const fs = require('fs');
 const path = require('path');
 
-fs.promises.mkdir(path.join(__dirname, 'project-dist'), {recursive: true});
+(async () => {
+  await fs.promises.rm(path.join(__dirname, 'project-dist'), {recursive: true, force: true});
+  await fs.promises.mkdir(path.join(__dirname, 'project-dist'), {recursive: true});
 
-const htmlOutput = fs.createWriteStream(path.join(__dirname, 'project-dist', 'index.html'), 'utf-8');
-const styleOutput = fs.createWriteStream(path.join(__dirname, 'project-dist', 'style.css'), 'utf-8');
+  readComponents();
+  const styleOutput = fs.createWriteStream(path.join(__dirname, 'project-dist', 'style.css'), 'utf-8');
+  await fs.promises.readdir(path.join(__dirname, 'styles')).then(data => {
+    data.forEach(file => {
+      const infoArr = [];      
+      fs.promises.stat(path.join(__dirname, 'styles', file)).then(stats => {
+        if (stats.isFile() && path.extname(file) === '.css') {
+          fs.promises.readFile(path.join(__dirname, 'styles', file), 'utf-8').then(info => {
+            infoArr.push(info);
+            styleOutput.write(infoArr.join(''));
+          });
+        }
+      });
+    });
+  });
+  await fs.promises.mkdir(path.join(__dirname, 'project-dist', 'assets'), {recursive: true});
+  copyAssets((path.join(__dirname, 'assets')), path.join(__dirname, 'project-dist', 'assets'));
+})();
 
 async function readComponents() {
+  const htmlOutput = fs.createWriteStream(path.join(__dirname, 'project-dist', 'index.html'), 'utf-8');
   const data = await fs.promises.readdir(path.join(__dirname, 'components'));
   let obj = {};
   let arr = [];
@@ -26,23 +45,6 @@ async function readComponents() {
   }
   htmlOutput.write(str);
 }
-readComponents();
-
-fs.promises.readdir(path.join(__dirname, 'styles')).then(data => {
-  data.forEach(file => {
-    const infoArr = [];
-    fs.promises.stat(path.join(__dirname, 'styles', file)).then(stats => {
-      if (stats.isFile() && path.extname(file) === '.css') {
-        fs.promises.readFile(path.join(__dirname, 'styles', file), 'utf-8').then(info => {
-          infoArr.push(info);
-          styleOutput.write(infoArr.join(''));
-        });
-      }
-    });
-  });
-});
-
-fs.promises.mkdir(path.join(__dirname, 'project-dist', 'assets'), {recursive: true});
 
 async function copyAssets(path, pathTo) {  
   const data = await fs.promises.readdir(path);  
@@ -57,4 +59,3 @@ async function copyAssets(path, pathTo) {
     }
   } 
 }
-copyAssets((path.join(__dirname, 'assets')), path.join(__dirname, 'project-dist', 'assets'));
